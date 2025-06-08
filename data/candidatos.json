@@ -1,0 +1,34 @@
+{
+  "candidatos": [
+    {
+      "nome": "Lula",
+      "partido": "PT",
+      "cargo": "Presidente"
+    },
+    {
+      "nome": "Arthur Lira",
+      "partido": "PP",
+      "cargo": "Presidente da Câmara"
+    },
+    {
+      "nome": "Rodrigo Pacheco",
+      "partido": "PSD",
+      "cargo": "Presidente do Senado"
+    },
+    {
+      "nome": "Tarcísio de Freitas",
+      "partido": "Republicanos",
+      "cargo": "Governador de São Paulo"
+    },
+    {
+      "nome": "Cláudio Castro",
+      "partido": "PL",
+      "cargo": "Governador do Rio de Janeiro"
+    },
+    {
+      "nome": "Eduardo Leite",
+      "partido": "PSDB",
+      "cargo": "Governador do Rio Grande do Sul"
+    }
+  ]
+} 

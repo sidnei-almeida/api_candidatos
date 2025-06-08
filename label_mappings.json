@@ -1,0 +1,13 @@
+{
+  "aspects": {
+    "congresso": 0,
+    "economia": 1,
+    "governo": 2,
+    "outros": 3
+  },
+  "sentiments": {
+    "negativo": 0,
+    "neutro": 1,
+    "positivo": 2
+  }
+} 
