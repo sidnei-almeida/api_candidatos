@@ -1,55 +1,97 @@
-# Instruções para Execução da API
+# Instruções de Execução da API de Candidatos
 
-## Requisitos
+Este documento explica como configurar e executar a API de análise de sentimentos para notícias políticas.
 
-Certifique-se de ter instalado:
+## Arquitetura
 
-- Python 3.8+
-- pip (gerenciador de pacotes Python)
-- Bibliotecas necessárias (listadas em requirements.txt)
+A API está construída da seguinte forma:
 
-## Instalação
+- `main.py`: Contém a definição da API FastAPI e seus endpoints
+- `services.py`: Contém a lógica de negócio para processamento e análise de notícias
+- `models.py`: Contém os modelos Pydantic para validação de dados
+- `news_collector.py`: Contém a lógica para coleta de notícias
+- `run.py`: Script para executar a API localmente
 
-1. Instale as dependências:
+## Preparação do Ambiente
 
-```bash
-cd api
-pip install -r requirements.txt
+### Requisitos
+
+- Python 3.10 ou superior
+- Bibliotecas listadas em `requirements.txt`
+
+### Instalação
+
+1. Clone o repositório:
+   ```
+   git clone https://github.com/seu-usuario/api_candidatos.git
+   cd api_candidatos
+   ```
+
+2. Crie e ative um ambiente virtual (recomendado):
+   ```
+   python -m venv venv
+   source venv/bin/activate  # No Windows: venv\Scripts\activate
+   ```
+
+3. Instale as dependências:
+   ```
+   pip install -r requirements.txt
+   ```
+
+## Execução
+
+Para executar a API localmente:
+
 ```
-
-2. Certifique-se de que o modelo spaCy está instalado:
-
-```bash
-python -m spacy download pt_core_news_lg
-```
-
-## Modos de Execução
-
-Há três formas de executar a API:
-
-### 1. Usando o script run.py (dentro da pasta api)
-
-Este é o método recomendado para desenvolvimento local.
-
-```bash
-cd api
 python run.py
 ```
 
-### 2. Usando o script start_api.py (na raiz do projeto)
+Isto irá:
+1. Baixar recursos do NLTK necessários
+2. Verificar o modelo spaCy
+3. Iniciar o servidor na porta 8000
 
-Este método é útil para iniciar a API a partir da raiz do projeto.
+## Carregamento de Modelos e Dados
 
-```bash
-python start_api.py
+A API foi projetada para funcionar de forma flexível com os modelos e arquivos de dados:
+
+1. **Carregamento Inteligente**: A API tenta primeiro carregar os arquivos localmente e, se não encontrar, busca diretamente do GitHub.
+
+2. **Arquivos Carregados Dinamicamente**:
+   - `modelo_aspectos.joblib` - Modelo para classificação de aspectos políticos
+   - `modelo_sentimentos.joblib` - Modelo para classificação de sentimentos
+   - `data/aspectos_politicos.json` - Dicionário de aspectos políticos
+   - `data/lexico_politico.json` - Léxico político para análise de sentimentos
+   - `data/candidatos.json` - Lista de candidatos políticos
+   - `data/noticias_cache.csv` - Cache de notícias coletadas
+
+3. **Deploy no Render**: Para implantação no Render, não é necessário baixar os arquivos previamente, pois a API vai carregá-los diretamente do GitHub durante a execução.
+
+## Endpoints Principais
+
+- `GET /`: Informações sobre a API
+- `GET /noticias/`: Obter notícias coletadas
+- `GET /noticias/coletar`: Acionar coleta de novas notícias
+- `POST /noticias/analisar-texto`: Analisar um texto enviado
+- `GET /noticias/por-aspecto/{aspecto}`: Obter notícias por aspecto
+- `GET /noticias/por-sentimento/{sentimento}`: Obter notícias por sentimento
+- `GET /noticias/candidato/{candidato}/analise`: Obter análise de um candidato
+
+Para mais detalhes, acesse a documentação interativa em `/docs` após iniciar a API.
+
+## Resolução de Problemas
+
+### Se você encontrar problemas com o spaCy
+
+Certifique-se de que o modelo do spaCy está instalado:
+
+```
+python -m spacy download pt_core_news_lg
 ```
 
-### 3. Usando diretamente o uvicorn (para produção)
+### Se os modelos não carregarem
 
-```bash
-cd api
-uvicorn main:app --host=0.0.0.0 --port=8000
-```
+Verifique se os arquivos `modelo_aspectos.joblib` e `modelo_sentimentos.joblib` estão na pasta raiz. Se não estiverem, a API tentará baixá-los do GitHub automaticamente.
 
 ## Teste da API
 

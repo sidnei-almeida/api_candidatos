@@ -10,6 +10,32 @@ from datetime import datetime
 import numpy as np
 import time
 import ast
+import requests
+import io
+from urllib.request import urlopen
+
+# URLs dos recursos no GitHub
+GITHUB_URLS = {
+    "modelo_aspectos": "https://github.com/sidnei-almeida/api_candidatos/raw/refs/heads/main/modelo_aspectos.joblib",
+    "modelo_sentimentos": "https://github.com/sidnei-almeida/api_candidatos/raw/refs/heads/main/modelo_sentimentos.joblib",
+    "aspectos_politicos": "https://github.com/sidnei-almeida/api_candidatos/raw/refs/heads/main/data/aspectos_politicos.json",
+    "candidatos": "https://github.com/sidnei-almeida/api_candidatos/raw/refs/heads/main/data/candidatos.json",
+    "lexico_politico": "https://github.com/sidnei-almeida/api_candidatos/raw/refs/heads/main/data/lexico_politico.json",
+    "noticias_cache": "https://github.com/sidnei-almeida/api_candidatos/raw/refs/heads/main/data/noticias_cache.csv"
+}
+import requests
+import io
+from urllib.request import urlopen
+
+# URLs dos recursos no GitHub
+GITHUB_URLS = {
+    "modelo_aspectos": "https://github.com/sidnei-almeida/api_candidatos/raw/refs/heads/main/modelo_aspectos.joblib",
+    "modelo_sentimentos": "https://github.com/sidnei-almeida/api_candidatos/raw/refs/heads/main/modelo_sentimentos.joblib",
+    "aspectos_politicos": "https://github.com/sidnei-almeida/api_candidatos/raw/refs/heads/main/data/aspectos_politicos.json",
+    "candidatos": "https://github.com/sidnei-almeida/api_candidatos/raw/refs/heads/main/data/candidatos.json",
+    "lexico_politico": "https://github.com/sidnei-almeida/api_candidatos/raw/refs/heads/main/data/lexico_politico.json",
+    "noticias_cache": "https://github.com/sidnei-almeida/api_candidatos/raw/refs/heads/main/data/noticias_cache.csv"
+}
 
 # Import do news_collector
 try:
@@ -59,24 +85,54 @@ class NoticiaService:
         # Cache de notícias
         self.df_cache = pd.DataFrame()
         
+        # Configurar diretório de dados
+        self.data_dir = os.path.join(self.project_root, 'data')
+        os.makedirs(self.data_dir, exist_ok=True)
+        
         # Carregar modelos
         try:
-            # Primeiro, tentar carregar os modelos da pasta atual (api)
+            # Verificar se existem modelos locais primeiro
             modelo_aspectos_path = os.path.join(self.project_root, 'modelo_aspectos.joblib')
             modelo_sentimentos_path = os.path.join(self.project_root, 'modelo_sentimentos.joblib')
             
-            print(f"Tentando carregar modelos de: {modelo_aspectos_path}")
-            
-            if os.path.exists(modelo_aspectos_path) and os.path.exists(modelo_sentimentos_path):
+            if os.path.exists(modelo_aspectos_path):
+                print(f"Carregando modelo de aspectos do arquivo local: {modelo_aspectos_path}")
                 self.modelo_aspectos = joblib.load(modelo_aspectos_path)
-                self.modelo_sentimentos = joblib.load(modelo_sentimentos_path)
-                print(f"Modelos carregados com sucesso de {modelo_aspectos_path}")
             else:
-                raise FileNotFoundError(f"Modelos não encontrados em {modelo_aspectos_path}")
+                print(f"Carregando modelo de aspectos do GitHub")
+                try:
+                    # Usar requests para obter o modelo do GitHub
+                    response = requests.get(GITHUB_URLS["modelo_aspectos"], stream=True)
+                    response.raise_for_status()
+                    
+                    # Carregar o modelo direto da resposta
+                    file_object = io.BytesIO(response.content)
+                    self.modelo_aspectos = joblib.load(file_object)
+                    print("Modelo de aspectos carregado com sucesso do GitHub")
+                except Exception as e:
+                    print(f"Erro ao carregar modelo de aspectos do GitHub: {str(e)}")
+                    self.modelo_aspectos = None
+            
+            if os.path.exists(modelo_sentimentos_path):
+                print(f"Carregando modelo de sentimentos do arquivo local: {modelo_sentimentos_path}")
+                self.modelo_sentimentos = joblib.load(modelo_sentimentos_path)
+            else:
+                print(f"Carregando modelo de sentimentos do GitHub")
+                try:
+                    # Usar requests para obter o modelo do GitHub
+                    response = requests.get(GITHUB_URLS["modelo_sentimentos"], stream=True)
+                    response.raise_for_status()
+                    
+                    # Carregar o modelo direto da resposta
+                    file_object = io.BytesIO(response.content)
+                    self.modelo_sentimentos = joblib.load(file_object)
+                    print("Modelo de sentimentos carregado com sucesso do GitHub")
+                except Exception as e:
+                    print(f"Erro ao carregar modelo de sentimentos do GitHub: {str(e)}")
+                    self.modelo_sentimentos = None
                 
         except Exception as e:
             print(f"Erro ao carregar modelos: {str(e)}")
-            print("Os modelos serão criados pelo script setup.py se necessário.")
             self.modelo_aspectos = None
             self.modelo_sentimentos = None
         
@@ -95,7 +151,8 @@ class NoticiaService:
                         "congresso": 0,
                         "economia": 1,
                         "governo": 2,
-                        "outros": 3
+                        "outros": 3,
+                        "neutro": 4
                     },
                     "sentiments": {
                         "negativo": 0,
@@ -122,22 +179,31 @@ class NoticiaService:
         self.aspectos_dict = self._carregar_dicionario_aspectos()
         self.lexico_politico = self._carregar_lexico_politico()
         
-        # Configurar diretório de dados
-        self.data_dir = os.path.join(self.project_root, 'data')
-        os.makedirs(self.data_dir, exist_ok=True)
-        
-        # Initialize or load cache
+        # Carregar cache de notícias
         self.cache_file = os.path.join(self.data_dir, 'noticias_cache.csv')
+        
         if os.path.exists(self.cache_file):
             try:
                 self.df_cache = pd.read_csv(self.cache_file)
-                print(f"Cache carregado com sucesso: {len(self.df_cache)} notícias")
+                print(f"Cache local carregado com sucesso: {len(self.df_cache)} notícias")
             except:
-                print("Erro ao carregar cache. Iniciando com DataFrame vazio.")
-                self.df_cache = pd.DataFrame()
+                print("Erro ao carregar cache local. Tentando carregar do GitHub...")
+                try:
+                    # Carregar do GitHub
+                    self.df_cache = pd.read_csv(GITHUB_URLS["noticias_cache"])
+                    print(f"Cache carregado do GitHub com sucesso: {len(self.df_cache)} notícias")
+                except:
+                    print("Erro ao carregar cache do GitHub. Iniciando com DataFrame vazio.")
+                    self.df_cache = pd.DataFrame()
         else:
-            print("Arquivo de cache não encontrado. Iniciando com DataFrame vazio.")
-            self.df_cache = pd.DataFrame()
+            print("Arquivo de cache local não encontrado. Tentando carregar do GitHub...")
+            try:
+                # Carregar do GitHub
+                self.df_cache = pd.read_csv(GITHUB_URLS["noticias_cache"])
+                print(f"Cache carregado do GitHub com sucesso: {len(self.df_cache)} notícias")
+            except:
+                print("Erro ao carregar cache do GitHub. Iniciando com DataFrame vazio.")
+                self.df_cache = pd.DataFrame()
 
     def coletar_todas_noticias(self) -> Dict:
         """Collect news from all sources"""
@@ -1088,45 +1154,30 @@ class NoticiaService:
 
     def carregar_candidatos_conhecidos(self) -> List[str]:
         """
-        Carrega lista de candidatos conhecidos do arquivo
+        Carrega a lista de candidatos políticos conhecidos.
         """
-        try:
-            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            candidatos_file = os.path.join(project_root, 'data', 'candidatos.json')
-            
-            if os.path.exists(candidatos_file):
+        # Verificar arquivo local primeiro
+        candidatos_file = os.path.join(self.data_dir, 'candidatos.json')
+        
+        if os.path.exists(candidatos_file):
+            try:
                 with open(candidatos_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            else:
-                # Lista padrão de alguns políticos/candidatos relevantes
-                candidatos_padrao = [
-                    "Lula", "Luiz Inácio Lula da Silva",
-                    "Jair Bolsonaro", "Bolsonaro",
-                    "Simone Tebet", "Tebet",
-                    "Ciro Gomes", "Ciro",
-                    "Fernando Haddad", "Haddad",
-                    "Tarcísio de Freitas", "Tarcísio",
-                    "Pablo Marçal", "Marçal",
-                    "Romeu Zema", "Zema",
-                    "Eduardo Leite",
-                    "Ronaldo Caiado", "Caiado",
-                    "Helder Barbalho",
-                    "João Doria", "Doria",
-                    "Geraldo Alckmin", "Alckmin",
-                    "Michelle Bolsonaro",
-                    "Arthur Lira", "Lira",
-                    "Rodrigo Pacheco", "Pacheco"
-                ]
-                
-                # Salvar lista padrão para uso futuro
-                os.makedirs(os.path.dirname(candidatos_file), exist_ok=True)
-                with open(candidatos_file, 'w', encoding='utf-8') as f:
-                    json.dump(candidatos_padrao, f, ensure_ascii=False, indent=2)
-                
-                return candidatos_padrao
+            except Exception as e:
+                print(f"Erro ao carregar lista de candidatos local: {str(e)}")
+        
+        # Se não encontrar localmente, tenta baixar do GitHub
+        try:
+            print("Tentando carregar lista de candidatos do GitHub...")
+            response = requests.get(GITHUB_URLS["candidatos"])
+            response.raise_for_status()
+            return response.json()
         except Exception as e:
-            print(f"Erro ao carregar candidatos conhecidos: {str(e)}")
-            return []
+            print(f"Erro ao carregar lista de candidatos do GitHub: {str(e)}")
+        
+        # Lista padrão como último recurso
+        print("Usando lista de candidatos padrão")
+        return ["Lula", "Bolsonaro", "Tarcísio de Freitas", "Cláudio Castro", "Eduardo Leite", "Romeu Zema"]
 
     def detectar_regiao(self, texto: str) -> Optional[str]:
         """Detecta a região mencionada no texto"""
@@ -1692,70 +1743,63 @@ class NoticiaService:
         """
         Carrega ou inicializa o dicionário de aspectos políticos com palavras-chave relacionadas.
         """
-        # Dicionário padrão de aspectos políticos
-        dicionario_padrao = {
-            'economia': ['economia', 'inflação', 'pib', 'fiscal', 'imposto', 'taxa', 'juros', 'dólar', 'banco central', 
-                        'mercado', 'desemprego', 'orçamento', 'dívida', 'gastos', 'receita', 'financeiro', 'tributário'],
-            
-            'congresso': ['congresso', 'senado', 'câmara', 'deputado', 'senador', 'parlamento', 'legislativo', 
-                         'comissão', 'plenário', 'projeto de lei', 'votação', 'relator', 'bancada', 'emenda'],
-            
-            'governo': ['governo', 'presidente', 'ministro', 'executivo', 'planalto', 'gestão', 'administração', 
-                       'governador', 'prefeito', 'decreto', 'política', 'mandato', 'medida provisória'],
-            
-            'outros': ['justiça', 'stf', 'supremo', 'judiciário', 'juiz', 'tribunal', 'processo', 'ação', 'investigação',
-                      'eleição', 'candidato', 'urna', 'campanha', 'voto', 'partido', 'coligação', 'pesquisa', 'disputa',
-                      'corrupção', 'propina', 'desvio', 'lavagem', 'cpi', 'delação', 'operação', 'polícia federal']
-        }
+        # Verificar arquivo local primeiro
+        aspectos_file = os.path.join(self.data_dir, 'aspectos_politicos.json')
         
-        # Tenta carregar de um arquivo se disponível
-        try:
-            aspectos_file = os.path.join(self.project_root, 'data', 'aspectos_politicos.json')
-            if os.path.exists(aspectos_file):
+        if os.path.exists(aspectos_file):
+            try:
                 with open(aspectos_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            else:
-                # Salva o dicionário padrão em um arquivo para uso futuro
-                os.makedirs(os.path.dirname(aspectos_file), exist_ok=True)
-                with open(aspectos_file, 'w', encoding='utf-8') as f:
-                    json.dump(dicionario_padrao, f, ensure_ascii=False, indent=2)
-                print(f"Dicionário de aspectos políticos criado em {aspectos_file}")
-                return dicionario_padrao
+            except Exception as e:
+                print(f"Erro ao carregar dicionário de aspectos local: {str(e)}")
+        
+        # Se não encontrar localmente, tenta baixar do GitHub
+        try:
+            print("Tentando carregar dicionário de aspectos do GitHub...")
+            response = requests.get(GITHUB_URLS["aspectos_politicos"])
+            response.raise_for_status()
+            return response.json()
         except Exception as e:
-            print(f"Erro ao carregar dicionário de aspectos: {str(e)}")
-            return dicionario_padrao
-    
+            print(f"Erro ao carregar dicionário de aspectos do GitHub: {str(e)}")
+        
+        # Dicionário padrão como último recurso
+        print("Usando dicionário de aspectos padrão")
+        return {
+            "congresso": ["legislativo", "congresso", "senado", "câmara", "deputado", "senador"],
+            "economia": ["economia", "inflação", "desemprego", "pib", "dólar", "bolsa"],
+            "governo": ["executivo", "governo", "presidente", "ministro", "ministério", "decreto"],
+            "outros": ["outros", "diversos"]
+        }
+
     def _carregar_lexico_politico(self):
         """
         Carrega ou inicializa um léxico político com palavras associadas a sentimentos.
         """
-        # Léxico padrão simplificado
-        lexico_padrao = {
-            'positivo': ['bom', 'ótimo', 'excelente', 'eficiente', 'eficaz', 'crescimento', 'desenvolvimento',
-                        'sucesso', 'avanço', 'progresso', 'benefício', 'ganho', 'aprovado', 'vitória', 'acordo',
-                        'recuperação', 'superávit', 'lucro', 'transparente', 'honesto', 'responsável', 'justo'],
-            
-            'negativo': ['ruim', 'péssimo', 'corrupto', 'corrupção', 'fraude', 'crise', 'problema', 'escândalo',
-                        'déficit', 'prejuízo', 'inflação', 'desemprego', 'fracasso', 'derrota', 'recessão',
-                        'irregular', 'ilegal', 'denúncia', 'acusação', 'investigação', 'propina', 'superfaturado'],
-            
-            'neutro': ['anunciar', 'dizer', 'afirmar', 'declarar', 'propor', 'apresentar', 'discutir', 'debater',
-                      'analisar', 'considerar', 'avaliar', 'planejar', 'votar', 'deliberar', 'decidir', 'informar']
-        }
+        # Verificar arquivo local primeiro
+        lexico_file = os.path.join(self.data_dir, 'lexico_politico.json')
         
-        # Tenta carregar de um arquivo se disponível
-        try:
-            lexico_file = os.path.join(self.project_root, 'data', 'lexico_politico.json')
-            if os.path.exists(lexico_file):
+        if os.path.exists(lexico_file):
+            try:
                 with open(lexico_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            else:
-                # Salva o léxico padrão em um arquivo para uso futuro
-                os.makedirs(os.path.dirname(lexico_file), exist_ok=True)
-                with open(lexico_file, 'w', encoding='utf-8') as f:
-                    json.dump(lexico_padrao, f, ensure_ascii=False, indent=2)
-                print(f"Léxico político criado em {lexico_file}")
-                return lexico_padrao
+            except Exception as e:
+                print(f"Erro ao carregar léxico político local: {str(e)}")
+        
+        # Se não encontrar localmente, tenta baixar do GitHub
+        try:
+            print("Tentando carregar léxico político do GitHub...")
+            response = requests.get(GITHUB_URLS["lexico_politico"])
+            response.raise_for_status()
+            return response.json()
         except Exception as e:
-            print(f"Erro ao carregar léxico político: {str(e)}")
-            return lexico_padrao
+            print(f"Erro ao carregar léxico político do GitHub: {str(e)}")
+        
+        # Léxico padrão como último recurso
+        print("Usando léxico político padrão")
+        return {
+            "positivo": ["bom", "ótimo", "excelente", "eficiente", "eficaz", "crescimento", "desenvolvimento",
+                        "sucesso", "avanço", "progresso", "benefício", "ganho", "aprovado", "vitória", "acordo"],
+            
+            "negativo": ["ruim", "péssimo", "corrupto", "corrupção", "fraude", "crise", "problema", "escândalo",
+                        "déficit", "prejuízo", "inflação", "desemprego", "fracasso", "derrota", "recessão"]
+        }
