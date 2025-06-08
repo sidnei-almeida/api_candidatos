@@ -1283,7 +1283,10 @@ class NoticiaService:
             df = df[df['data'] <= data_fim]
         
         # Filtrar notícias que mencionam o candidato
-        df_candidato = df[df['candidatos_lista'].apply(lambda x: x is not None and candidato in x)]
+        df_candidato = df[df['candidatos_lista'].apply(
+            lambda x: x is not None and not pd.isna(x).any() if isinstance(x, (list, np.ndarray)) 
+            else x is not None and not pd.isna(x) and isinstance(x, (list, str)) and candidato in x
+        )]
         
         if df_candidato.empty:
             raise Exception(f"Não foram encontradas menções ao candidato '{candidato}'")

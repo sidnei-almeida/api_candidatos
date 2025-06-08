@@ -3,7 +3,8 @@
     "congresso": 0,
     "economia": 1,
     "governo": 2,
-    "outros": 3
+    "outros": 3,
+    "neutro": 4
   },
   "sentiments": {
     "negativo": 0,

@@ -8,6 +8,7 @@ import sys
 from datetime import datetime
 import ast
 import pandas as pd
+import numpy as np
 
 # Importações locais (de acordo com o contexto de execução)
 try:
@@ -46,6 +47,9 @@ def processar_campos_noticia(noticia: Dict) -> Dict:
         noticia['candidatos'] = []
     elif noticia['candidatos'] is None:
         noticia['candidatos'] = []
+    elif isinstance(noticia['candidatos'], (list, np.ndarray)) and hasattr(noticia['candidatos'], '__iter__') and not isinstance(noticia['candidatos'], str):
+        if pd.isna(noticia['candidatos']).any():
+            noticia['candidatos'] = []
     elif pd.isna(noticia['candidatos']):
         noticia['candidatos'] = []
     elif isinstance(noticia['candidatos'], str):
@@ -92,13 +96,58 @@ def processar_campos_noticia(noticia: Dict) -> Dict:
         noticia['sentimento'] = "neutro"
     
     # Verificar análises detalhadas
-    if 'analises_detalhadas' not in noticia or noticia['analises_detalhadas'] is None or pd.isna(noticia['analises_detalhadas']):
+    if 'analises_detalhadas' not in noticia:
         noticia['analises_detalhadas'] = [{
             'texto': noticia.get('texto', ''),
             'aspecto': noticia.get('aspecto', 'outros'),
             'sentimento': noticia.get('sentimento', 'neutro'),
             'relevancia': noticia.get('relevancia', 0)
         }]
+    elif noticia['analises_detalhadas'] is None:
+        noticia['analises_detalhadas'] = [{
+            'texto': noticia.get('texto', ''),
+            'aspecto': noticia.get('aspecto', 'outros'),
+            'sentimento': noticia.get('sentimento', 'neutro'),
+            'relevancia': noticia.get('relevancia', 0)
+        }]
+    else:
+        # Tratar com segurança, verificando o tipo do objeto
+        try:
+            # Se for uma lista vazia
+            if isinstance(noticia['analises_detalhadas'], list) and len(noticia['analises_detalhadas']) == 0:
+                noticia['analises_detalhadas'] = [{
+                    'texto': noticia.get('texto', ''),
+                    'aspecto': noticia.get('aspecto', 'outros'),
+                    'sentimento': noticia.get('sentimento', 'neutro'),
+                    'relevancia': noticia.get('relevancia', 0)
+                }]
+            # Se for um array numpy
+            elif isinstance(noticia['analises_detalhadas'], np.ndarray):
+                if len(noticia['analises_detalhadas']) == 0 or pd.isna(noticia['analises_detalhadas']).all():
+                    noticia['analises_detalhadas'] = [{
+                        'texto': noticia.get('texto', ''),
+                        'aspecto': noticia.get('aspecto', 'outros'),
+                        'sentimento': noticia.get('sentimento', 'neutro'),
+                        'relevancia': noticia.get('relevancia', 0)
+                    }]
+            # Se for um valor único (não-lista)
+            elif not isinstance(noticia['analises_detalhadas'], list):
+                if pd.isna(noticia['analises_detalhadas']):
+                    noticia['analises_detalhadas'] = [{
+                        'texto': noticia.get('texto', ''),
+                        'aspecto': noticia.get('aspecto', 'outros'),
+                        'sentimento': noticia.get('sentimento', 'neutro'),
+                        'relevancia': noticia.get('relevancia', 0)
+                    }]
+        except Exception as e:
+            # Em caso de erro, garantir que há um valor padrão
+            print(f"Erro ao processar análises detalhadas: {str(e)}")
+            noticia['analises_detalhadas'] = [{
+                'texto': noticia.get('texto', ''),
+                'aspecto': noticia.get('aspecto', 'outros'),
+                'sentimento': noticia.get('sentimento', 'neutro'),
+                'relevancia': noticia.get('relevancia', 0)
+            }]
     
     return noticia
 
@@ -333,22 +382,58 @@ async def get_noticias_por_aspecto(
         
         for noticia in noticias:
             if noticia.get('aspecto') == aspecto:
-                # Verificar se analises_detalhadas é uma string e converter para lista
-                if 'analises_detalhadas' in noticia and isinstance(noticia['analises_detalhadas'], str):
-                    try:
-                        import ast
-                        noticia['analises_detalhadas'] = ast.literal_eval(noticia['analises_detalhadas'])
-                    except:
-                        # Se falhar, criar uma análise detalhada padrão
-                        noticia['analises_detalhadas'] = [{
+                try:
+                    # Criar uma cópia da notícia para processar
+                    noticia_copia = noticia.copy()
+                    
+                    # Verificar se analises_detalhadas é uma string e converter para lista
+                    if 'analises_detalhadas' in noticia_copia and isinstance(noticia_copia['analises_detalhadas'], str):
+                        try:
+                            import ast
+                            noticia_copia['analises_detalhadas'] = ast.literal_eval(noticia_copia['analises_detalhadas'])
+                        except:
+                            noticia_copia['analises_detalhadas'] = [{
+                                'texto': noticia_copia.get('texto', ''),
+                                'aspecto': noticia_copia.get('aspecto', 'outros'),
+                                'sentimento': noticia_copia.get('sentimento', 'neutro'),
+                                'relevancia': noticia_copia.get('relevancia', 0)
+                            }]
+                    
+                    # Garantir que analises_detalhadas seja uma lista válida para evitar erro
+                    if 'analises_detalhadas' in noticia_copia:
+                        if not isinstance(noticia_copia['analises_detalhadas'], list):
+                            noticia_copia['analises_detalhadas'] = [{
+                                'texto': noticia_copia.get('texto', ''),
+                                'aspecto': noticia_copia.get('aspecto', 'outros'),
+                                'sentimento': noticia_copia.get('sentimento', 'neutro'),
+                                'relevancia': noticia_copia.get('relevancia', 0)
+                            }]
+                    
+                    # Processar campos especiais
+                    noticia_processada = processar_campos_noticia(noticia_copia)
+                    noticias_filtradas.append(noticia_processada)
+                except Exception as e:
+                    print(f"Erro ao processar notícia por aspecto: {str(e)}")
+                    # Adicionar versão simplificada da notícia sem processamento
+                    noticia_simples = {
+                        'titulo': noticia.get('titulo', ''),
+                        'texto': noticia.get('texto', ''),
+                        'data': noticia.get('data', ''),
+                        'fonte': noticia.get('fonte', ''),
+                        'url': noticia.get('url', ''),
+                        'aspecto': noticia.get('aspecto', 'outros'),
+                        'sentimento': noticia.get('sentimento', 'neutro'),
+                        'candidatos': [],
+                        'regiao': noticia.get('regiao', ''),
+                        'relevancia': noticia.get('relevancia', 0),
+                        'analises_detalhadas': [{
                             'texto': noticia.get('texto', ''),
                             'aspecto': noticia.get('aspecto', 'outros'),
                             'sentimento': noticia.get('sentimento', 'neutro'),
                             'relevancia': noticia.get('relevancia', 0)
                         }]
-                # Processar campos especiais
-                noticia = processar_campos_noticia(noticia)
-                noticias_filtradas.append(noticia)
+                    }
+                    noticias_filtradas.append(noticia_simples)
         
         return noticias_filtradas
     except Exception as e:
@@ -382,22 +467,58 @@ async def get_noticias_por_sentimento(
         
         for noticia in noticias:
             if noticia.get('sentimento') == sentimento:
-                # Verificar se analises_detalhadas é uma string e converter para lista
-                if 'analises_detalhadas' in noticia and isinstance(noticia['analises_detalhadas'], str):
-                    try:
-                        import ast
-                        noticia['analises_detalhadas'] = ast.literal_eval(noticia['analises_detalhadas'])
-                    except:
-                        # Se falhar, criar uma análise detalhada padrão
-                        noticia['analises_detalhadas'] = [{
+                try:
+                    # Criar uma cópia da notícia para processar
+                    noticia_copia = noticia.copy()
+                    
+                    # Verificar se analises_detalhadas é uma string e converter para lista
+                    if 'analises_detalhadas' in noticia_copia and isinstance(noticia_copia['analises_detalhadas'], str):
+                        try:
+                            import ast
+                            noticia_copia['analises_detalhadas'] = ast.literal_eval(noticia_copia['analises_detalhadas'])
+                        except:
+                            noticia_copia['analises_detalhadas'] = [{
+                                'texto': noticia_copia.get('texto', ''),
+                                'aspecto': noticia_copia.get('aspecto', 'outros'),
+                                'sentimento': noticia_copia.get('sentimento', 'neutro'),
+                                'relevancia': noticia_copia.get('relevancia', 0)
+                            }]
+                    
+                    # Garantir que analises_detalhadas seja uma lista válida para evitar erro
+                    if 'analises_detalhadas' in noticia_copia:
+                        if not isinstance(noticia_copia['analises_detalhadas'], list):
+                            noticia_copia['analises_detalhadas'] = [{
+                                'texto': noticia_copia.get('texto', ''),
+                                'aspecto': noticia_copia.get('aspecto', 'outros'),
+                                'sentimento': noticia_copia.get('sentimento', 'neutro'),
+                                'relevancia': noticia_copia.get('relevancia', 0)
+                            }]
+                    
+                    # Processar campos especiais
+                    noticia_processada = processar_campos_noticia(noticia_copia)
+                    noticias_filtradas.append(noticia_processada)
+                except Exception as e:
+                    print(f"Erro ao processar notícia por sentimento: {str(e)}")
+                    # Adicionar versão simplificada da notícia sem processamento
+                    noticia_simples = {
+                        'titulo': noticia.get('titulo', ''),
+                        'texto': noticia.get('texto', ''),
+                        'data': noticia.get('data', ''),
+                        'fonte': noticia.get('fonte', ''),
+                        'url': noticia.get('url', ''),
+                        'aspecto': noticia.get('aspecto', 'outros'),
+                        'sentimento': noticia.get('sentimento', 'neutro'),
+                        'candidatos': [],
+                        'regiao': noticia.get('regiao', ''),
+                        'relevancia': noticia.get('relevancia', 0),
+                        'analises_detalhadas': [{
                             'texto': noticia.get('texto', ''),
                             'aspecto': noticia.get('aspecto', 'outros'),
                             'sentimento': noticia.get('sentimento', 'neutro'),
                             'relevancia': noticia.get('relevancia', 0)
                         }]
-                # Processar campos especiais
-                noticia = processar_campos_noticia(noticia)
-                noticias_filtradas.append(noticia)
+                    }
+                    noticias_filtradas.append(noticia_simples)
         
         return noticias_filtradas
     except Exception as e:
