@@ -1,13 +1,13 @@
 <!-- Canonical repository: https://github.com/sidnei-almeida/api_candidatos -->
-<!-- Hero icons: Simple Icons via jsDelivr (HTTPS SVG); GitHub allows these in README img tags. -->
+<!-- Hero icons: Simple Icons with explicit brand colors (cdn.simpleicons.org) — default SVGs are dark grey and vanish on GitHub dark mode. -->
 <p align="center">
-  <a href="https://fastapi.tiangolo.com/" title="FastAPI"><img src="https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/fastapi.svg" alt="FastAPI" width="56" height="56" /></a>
-  &nbsp;&nbsp;
-  <a href="https://www.python.org/" title="Python"><img src="https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/python.svg" alt="Python" width="56" height="56" /></a>
-  &nbsp;&nbsp;
-  <a href="https://spacy.io/" title="spaCy"><img src="https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/spacy.svg" alt="spaCy" width="56" height="56" /></a>
-  &nbsp;&nbsp;
-  <a href="https://scikit-learn.org/" title="scikit-learn"><img src="https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/scikitlearn.svg" alt="scikit-learn" width="56" height="56" /></a>
+  <a href="https://fastapi.tiangolo.com/" title="FastAPI"><img src="https://cdn.simpleicons.org/fastapi/009688" alt="FastAPI" width="64" height="64" /></a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="https://www.python.org/" title="Python"><img src="https://cdn.simpleicons.org/python/3776AB" alt="Python" width="64" height="64" /></a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="https://spacy.io/" title="spaCy"><img src="https://cdn.simpleicons.org/spacy/09A3D7" alt="spaCy" width="64" height="64" /></a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="https://scikit-learn.org/" title="scikit-learn"><img src="https://cdn.simpleicons.org/scikitlearn/F7931E" alt="scikit-learn" width="64" height="64" /></a>
 </p>
 
 <h1 align="center">api_candidatos</h1>
