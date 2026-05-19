@@ -1,6 +1,13 @@
 <!-- Canonical repository: https://github.com/sidnei-almeida/api_candidatos -->
+<!-- Hero icons: Simple Icons via jsDelivr (HTTPS SVG); GitHub allows these in README img tags. -->
 <p align="center">
-  <img src="images/banner.svg" alt="api_candidatos — FastAPI service for Brazilian political news (PT-BR)" width="520" />
+  <a href="https://fastapi.tiangolo.com/" title="FastAPI"><img src="https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/fastapi.svg" alt="FastAPI" width="56" height="56" /></a>
+  &nbsp;&nbsp;
+  <a href="https://www.python.org/" title="Python"><img src="https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/python.svg" alt="Python" width="56" height="56" /></a>
+  &nbsp;&nbsp;
+  <a href="https://spacy.io/" title="spaCy"><img src="https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/spacy.svg" alt="spaCy" width="56" height="56" /></a>
+  &nbsp;&nbsp;
+  <a href="https://scikit-learn.org/" title="scikit-learn"><img src="https://cdn.jsdelivr.net/npm/simple-icons@v14/icons/scikitlearn.svg" alt="scikit-learn" width="56" height="56" /></a>
 </p>
 
 <h1 align="center">api_candidatos</h1>
@@ -47,11 +54,26 @@ Interactive docs: once the server is up, open **`/docs`** (Swagger) or **`/redoc
 
 ## Gallery
 
-The figure below summarizes the data flow: sources → classified ingestion → cached persistence → FastAPI routes, backed by NLP models and supporting data files.
+The diagram below summarizes the data flow: sources → classified ingestion → cached persistence → FastAPI, with the ML stack alongside. It uses **Mermaid**, which [GitHub renders natively](https://github.blog/changelog/2022-03-17-include-diagrams-markdown-files-mermaid/) in Markdown files (no image hosting required).
 
-<p align="center">
-  <img src="images/pipeline.svg" alt="Diagram: sources, ingestion, CSV cache, FastAPI, NLP models, and clients" width="880" />
-</p>
+```mermaid
+flowchart TB
+  subgraph ingest[Ingestion path]
+    direction LR
+    SRC["Sources (RSS, web, news_collector)"]
+    CL["Classify: aspect + sentiment"]
+    CSV[("data/noticias_cache.csv")]
+    API["FastAPI (main.py)"]
+    SRC --> CL --> CSV --> API
+  end
+
+  ML["ML: joblib models + spaCy + lexicon"]
+  DAT["JSON: candidates, regions, aspects"]
+
+  ML --> API
+  DAT --> API
+  API --> OUT["Clients: /docs, filters, dashboards, recommendations"]
+```
 
 <p align="center">
   <em><strong>Figure 1.</strong> Conceptual API pipeline: ingestion and enrichment, storage in <code>data/noticias_cache.csv</code>, and REST consumption.</em>
@@ -182,9 +204,6 @@ python test_api.py
 ├── Procfile
 ├── render.yaml
 ├── data/                # Cache CSV, JSON (aspects, lexicon, candidates)
-├── images/
-│   ├── banner.svg
-│   └── pipeline.svg
 └── README.md
 ```
 
